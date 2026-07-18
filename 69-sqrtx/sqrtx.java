@@ -1,5 +1,8 @@
-class Solution {
-    public int mySqrt(int x) {
-        return (int) Math.sqrt(x);
+class Solution 
+{
+    public int mySqrt(int x) 
+    {
+        int ans=(int) Math.sqrt(x);
+        return ans;
     }
 }
