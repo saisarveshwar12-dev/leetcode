@@ -1,122 +1,131 @@
 class Solution {
-    // Digit prime factor contributions for digits 0 to 9: {count_2, count_3, count_5, count_7}
-    private static final int[][] FACTORS = {
-        {0, 0, 0, 0}, // 0 (unused)
-        {0, 0, 0, 0}, // 1
-        {1, 0, 0, 0}, // 2
-        {0, 1, 0, 0}, // 3
-        {2, 0, 0, 0}, // 4
-        {0, 0, 1, 0}, // 5
-        {1, 1, 0, 0}, // 6
-        {0, 0, 0, 1}, // 7
-        {3, 0, 0, 0}, // 8
-        {0, 2, 0, 0}  // 9
-    };
+    int primes[] = new int[] { 2, 3, 5, 7 };
+    int maxPrime = primes[primes.length - 1];
 
     public String smallestNumber(String num, long t) {
-          long temp = t;
-        int a = 0, b = 0, c = 0, d = 0;
-        
-        while (temp % 2 == 0) { a++; temp /= 2; }
-        while (temp % 3 == 0) { b++; temp /= 3; }
-        while (temp % 5 == 0) { c++; temp /= 5; }
-        while (temp % 7 == 0) { d++; temp /= 7; }
+        int primeCount[] = new int[maxPrime + 1];
+        int numLength = num.length();
+        int minLength;
+        int firstZeroIndexFromLeft = 0;
 
-        if (temp > 1) {
+        for (int prime : primes) {
+            while (t % prime == 0) {
+                t /= prime;
+                primeCount[prime]++;
+            }
+        }
+
+        if (t != 1) {
             return "-1";
         }
 
-        int n = num.length();
+        minLength = getMinLength(primeCount);
 
-        int validPrefixLen = n;
-        for (int i = 0; i < n; i++) {
-            if (num.charAt(i) == '0') {
-                validPrefixLen = i;
-                break;
+        if (numLength < minLength) {
+            return buildSuffix(primeCount, minLength, new char[minLength]);
+        }
+
+        char[] result = new char[numLength + 1];
+
+        for (int i = 0; firstZeroIndexFromLeft < numLength
+                && (result[++i] = num.charAt(firstZeroIndexFromLeft)) != '0'; firstZeroIndexFromLeft++) {
+            logNum(primeCount, result[i], -1);
+        }
+
+        if (getMinLength(primeCount) == 0) {
+            if (firstZeroIndexFromLeft == numLength) {
+                return num;
             }
+            Arrays.fill(result, ++firstZeroIndexFromLeft, result.length, '1');
+            return new String(result, 1, numLength);
         }
 
-        int[][] req = new int[n + 1][4];
-        req[0] = new int[]{a, b, c, d};
-        
-        int curA = a, curB = b, curC = c, curD = d;
-        for (int i = 0; i < validPrefixLen; i++) {
-            int digit = num.charAt(i) - '0';
-            curA -= FACTORS[digit][0];
-            curB -= FACTORS[digit][1];
-            curC -= FACTORS[digit][2];
-            curD -= FACTORS[digit][3];
-            req[i + 1] = new int[]{curA, curB, curC, curD};
-        }
-
-        for (int i = Math.min(n, validPrefixLen); i >= 0; i--) {
-            if (i == n) {
-                if (req[n][0] <= 0 && req[n][1] <= 0 && req[n][2] <= 0 && req[n][3] <= 0) {
-                    return num;
-                }
-            } else {
-                int startDigit = (num.charAt(i) - '0') + 1;
-                for (int digit = startDigit; digit <= 9; digit++) {
-                    int na = req[i][0] - FACTORS[digit][0];
-                    int nb = req[i][1] - FACTORS[digit][1];
-                    int nc = req[i][2] - FACTORS[digit][2];
-                    int nd = req[i][3] - FACTORS[digit][3];
-                    
-                    int remPositions = n - 1 - i;
-                    if (remPositions >= getMinLen(na, nb, nc, nd)) {
-                        StringBuilder sb = new StringBuilder();
-                        sb.append(num, 0, i);
-                        sb.append(digit);
-                        sb.append(fillSuffix(remPositions, na, nb, nc, nd));
-                        return sb.toString();
-                    }
+        for (int last = numLength - 1, end = Math.min(firstZeroIndexFromLeft, last); end >= 0; end--) {
+            for (logNum(primeCount, result[end + 1], 1); ++result[end + 1] <= '9'; logNum(primeCount, result[end + 1], 1)) {
+                logNum(primeCount, result[end + 1], -1);
+                if (getMinLength(primeCount) <= last - end) {
+                    return buildSuffix(primeCount, last - end, result);
                 }
             }
         }
 
-       int targetLen = Math.max(n + 1, getMinLen(a, b, c, d));
-        return fillSuffix(targetLen, a, b, c, d);
+        return buildSuffix(primeCount, result.length, result);
     }
 
-   private int getMinLen(int remA, int remB, int remC, int remD) {
-        remA = Math.max(0, remA);
-        remB = Math.max(0, remB);
-        remC = Math.max(0, remC);
-        remD = Math.max(0, remD);
-
-        int resCD = remC + remD;
-        int min23 = Integer.MAX_VALUE;
-
-        int maxSixes = Math.min(remA, remB);
-        for (int k = 0; k <= maxSixes; k++) {
-            int ra = Math.max(0, remA - k);
-            int rb = Math.max(0, remB - k);
-            int digits2 = (ra + 2) / 3; // Using 8s (2^3)
-            int digits3 = (rb + 1) / 2; // Using 9s (3^2)
-            min23 = Math.min(min23, k + digits2 + digits3);
+    void logNum(int[] primeCount, int num, int value) {
+        if (num < '2') {
+            return;
         }
-        return resCD + min23;
+
+        if (num == '9') {
+            primeCount[3] += value << 1;
+        } else if (num == '4') {
+            primeCount[2] += value << 1;
+        } else if (num == '8') {
+            primeCount[2] += value * 3;
+        } else if (num == '6') {
+            primeCount[2] += value;
+            primeCount[3] += value;
+        } else {
+            primeCount[num - '0'] += value;
+        }
     }
-    private String fillSuffix(int targetLen, int remA, int remB, int remC, int remD) {
-        StringBuilder sb = new StringBuilder();
-        for (int pos = 0; pos < targetLen; pos++) {
-            int positionsLeft = targetLen - 1 - pos;
-            for (int digit = 1; digit <= 9; digit++) {
-                int na = remA - FACTORS[digit][0];
-                int nb = remB - FACTORS[digit][1];
-                int nc = remC - FACTORS[digit][2];
-                int nd = remD - FACTORS[digit][3];
 
-                if (positionsLeft >= getMinLen(na, nb, nc, nd)) {
-                    sb.append(digit);
-                    remA = na;
-                    remB = nb;
-                    remC = nc;
-                    remD = nd;
-                    break;
-                }
-            }
+    String buildSuffix(int[] primeCount, int targetLength, char[] result) {
+        int index = result.length;
+
+        while (primeCount[3] > 1) {
+            primeCount[3] -= 2;
+            result[--index] = '9';
         }
-        return sb.toString();
+
+        while (primeCount[2] > 2) {
+            primeCount[2] -= 3;
+            result[--index] = '8';
+        }
+
+        while (primeCount[7]-- > 0) {
+            result[--index] = '7';
+        }
+
+        if (primeCount[2] > 0 && primeCount[3] > 0) {
+            result[--index] = '6';
+            primeCount[2]--;
+            primeCount[3]--;
+        }
+
+        while (primeCount[5]-- > 0) {
+            result[--index] = '5';
+        }
+
+        while (primeCount[2] > 1) {
+            primeCount[2] -= 2;
+            result[--index] = '4';
+        }
+
+        while (primeCount[3] > 0) {
+            primeCount[3]--;
+            result[--index] = '3';
+        }
+
+        while (primeCount[2] > 0) {
+            primeCount[2]--;
+            result[--index] = '2';
+        }
+
+        while (index + targetLength != result.length) {
+            result[--index] = '1';
+        }
+
+        return targetLength == result.length ? new String(result) : new String(result, 1, result.length - 1);
+    }
+
+    int getMinLength(int[] primeCount) {
+        int count2 = Math.max(0, primeCount[2]);
+        int count3 = Math.max(0, primeCount[3]);
+        int count23 = (count3 & 1) + (count2 % 3);
+
+        return (count3 >> 1) + (count2 / 3) + Math.max(0, primeCount[7]) + Math.max(0, primeCount[5])
+                + (count23 == 3 ? 2 : count23 > 0 ? 1 : 0);
     }
 }
